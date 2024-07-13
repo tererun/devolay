@@ -31,7 +31,12 @@ jobs:
         local-cache: true
 
     - name: Finish NDK Setup
-      run: chmod -R +x $ANDROID_NDK_HOME
+      run: |
+        cd $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+        rm llvm-strip
+        ln -s llvm-objcopy llvm-strip
+        rm ld
+        ln -s lld ld
       env:
         ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
