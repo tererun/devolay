@@ -22,10 +22,13 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Install Android NDK
-      run: |
-        sudo -i
-        echo "y" | sdkmanager --install "ndk;25.1.8937393"
+    - name: Setup Android NDK
+      id: setup-ndk
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r25c
+        link-to-sdk: true
+        local-cache: true
 
     - uses: actions/checkout@v2
 
@@ -60,11 +63,12 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew publishToMavenLocal -DandroidNdk=$ANDROID_SDK_ROOT/ndk-bundle
+      run: ./gradlew publishToMavenLocal -DandroidNdk=$ANDROID_NDK_HOME
       env:
         PGP_KEY: ${{ secrets.PGP_KEY }}
         PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
         PGP_PASSWORD: ${{ secrets.PGP_PASSWORD }}
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v1
