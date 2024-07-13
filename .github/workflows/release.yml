@@ -100,7 +100,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build with Gradle
-        run: ./gradlew publishToMavenLocal -DandroidNdk=$ANDROID_NDK_HOME
+        run: ./gradlew publishToMavenLocal -DandroidNdk=$ANDROID_NDK_HOME --debug
         env:
           PGP_KEY: ${{ secrets.PGP_KEY }}
           PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
