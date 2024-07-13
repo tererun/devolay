@@ -13,11 +13,13 @@ jobs:
     - name: Install innoextract
       run: wget https://constexpr.org/innoextract/files/innoextract-1.9-linux.tar.xz && sudo tar --directory=/opt -xvf innoextract-1.9-linux.tar.xz
 
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
     - name: Install Android NDK
       run: |
         sudo -i
-        echo "y" | /usr/local/lib/android/sdk/tools/bin/sdkmanager --install "ndk;25.1.8937393"
-
+        echo "y" | sdkmanager --install "ndk;25.1.8937393"
 
     - uses: actions/checkout@v2
     - name: Set up JDK 8
@@ -74,7 +76,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew publishToMavenLocal -DandroidNdk=/usr/local/lib/android/sdk/ndk-bundle
+      run: ./gradlew publishToMavenLocal -DandroidNdk=$ANDROID_SDK_ROOT/ndk-bundle
       env:
         PGP_KEY: ${{ secrets.PGP_KEY }}
         PGP_KEY_ID: ${{ secrets.PGP_KEY_ID }}
