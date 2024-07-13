@@ -33,6 +33,11 @@ jobs:
           link-to-sdk: true
           local-cache: true
 
+      - name: Finish NDK Setup
+        run: chmod -R +x $ANDROID_NDK_HOME
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
