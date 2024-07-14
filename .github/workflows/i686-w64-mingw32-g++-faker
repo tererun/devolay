@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ "$3" == "-v" || "$5" == "-v" ]]; then
-  i686-w64-mingw32-g++ $@ 2> >(sed -e 's/-win32 (GCC)/.2.0 (GCC)/g' >&2)
+  i686-w64-mingw32-g++ $@ 2> >(sed -e 's/-win32 (GCC)/.0.0 (GCC)/g' >&2)
 else
   i686-w64-mingw32-g++ $@
 fi
