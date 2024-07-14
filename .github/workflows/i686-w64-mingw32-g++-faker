@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [[ "$3" == "-v" ]]; then
+  gcc $@
+else
+  i686-w64-mingw32-g++ $@
+fi

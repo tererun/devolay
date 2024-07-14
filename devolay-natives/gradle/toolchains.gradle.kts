@@ -28,16 +28,16 @@ open class ToolchainConfiguration : RuleSource() {
                 target("linux_x86")
 
                 target("windows_x86-64") {
-                    getcCompiler().executable = "x86_64-w64-mingw32-gcc"
-                    cppCompiler.executable = "x86_64-w64-mingw32-g++"
-                    linker.executable = "x86_64-w64-mingw32-g++"
+                    getcCompiler().executable = "x86_64-w64-mingw32-g++-faker"
+                    cppCompiler.executable = "x86_64-w64-mingw32-g++-faker"
+                    linker.executable = "x86_64-w64-mingw32-g++-faker"
                     staticLibArchiver.executable = "x86_64-w64-mingw32-ar"
                 }
 
                 target("windows_x86") {
-                    getcCompiler().executable = "i686-w64-mingw32-gcc"
-                    cppCompiler.executable = "i686-w64-mingw32-g++"
-                    linker.executable = "i686-w64-mingw32-g++"
+                    getcCompiler().executable = "i686-w64-mingw32-g++-faker"
+                    cppCompiler.executable = "i686-w64-mingw32-g++-faker"
+                    linker.executable = "i686-w64-mingw32-g++-faker"
                     staticLibArchiver.executable = "i686-w64-mingw32-ar"
                 }
             }
