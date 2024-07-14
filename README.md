@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'me.walkerknapp:devolay:2.1.0'
+    implementation 'me.walkerknapp:devolay:2.1.1'
 }
 ```
 
@@ -25,7 +25,7 @@ dependencies {
 <dependency>
   <groupId>me.walkerknapp</groupId>
   <artifactId>devolay</artifactId>
-  <version>2.1.0</version>
+  <version>2.1.1</version>
 </dependency>
 ```
 
@@ -44,7 +44,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'me.walkerknapp:devolay:2.1.0:integrated'
+    implementation 'me.walkerknapp:devolay:2.1.1:integrated'
 }
 ```
 
@@ -53,7 +53,7 @@ dependencies {
 <dependency>
   <groupId>me.walkerknapp</groupId>
   <artifactId>devolay</artifactId>
-  <version>2.1.0</version>
+  <version>2.1.1</version>
   <classifier>integrated</classifier>  
 </dependency>
 ```
@@ -67,7 +67,7 @@ if you use android builds in your product. Please see the [Licensing Considerati
 #### Gradle
 ```groovy
 dependencies {
-    implementation('me.walkerknapp:devolay:2.1.0') {
+    implementation('me.walkerknapp:devolay:2.1.1') {
         artifact {
             name = "devolay"
             type = "aar"
