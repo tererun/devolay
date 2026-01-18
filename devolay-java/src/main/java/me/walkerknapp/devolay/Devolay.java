@@ -83,8 +83,12 @@ public class Devolay {
 
     private static String getArchDirectory() {
         final String osArchProperty = System.getProperty("os.arch").toLowerCase();
+        final String osNameProperty = System.getProperty("os.name").toLowerCase();
+        boolean isMacOS = osNameProperty.contains("mac");
+        
         if (osArchProperty.contains("aarch64") || (osArchProperty.contains("arm") && (osArchProperty.contains("64") || osArchProperty.contains("v8")))) {
-            return "arm64-v8a";
+            // macOS uses "arm64", Android uses "arm64-v8a"
+            return isMacOS ? "arm64" : "arm64-v8a";
         } else if (osArchProperty.contains("aarch32") || (osArchProperty.contains("arm") && (osArchProperty.contains("32") || osArchProperty.contains("v7")))) {
             return "armv7a";
         } else if (osArchProperty.contains("64")) {

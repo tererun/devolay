@@ -92,6 +92,7 @@ library {
     targetMachines.set(listOf(
             machines.windows.x86, machines.windows.x86_64,
             machines.macOS.x86_64,
+            machines.macOS.architecture("arm64"),
             machines.linux.x86, machines.linux.x86_64,
             machines.os("android").architecture("armv7a"),
             machines.os("android").architecture("arm64-v8a"),
@@ -144,6 +145,10 @@ fun locateNdiIncludes(): Path {
     if (ndiSdk == null && OperatingSystem.current().isMacOsX && file("/Library/NDI SDK for Apple").exists()) {
         ndiSdk = file("/Library/NDI SDK for Apple").toPath()
     }
+    // Check homebrew location for libndi
+    if (ndiSdk == null && OperatingSystem.current().isMacOsX && file("/usr/local/include").exists()) {
+        ndiSdk = file("/usr/local").toPath()
+    }
 
     // Check the working directory
     if (ndiSdk == null && file("../NDI SDK for Linux").exists()) {
@@ -154,6 +159,10 @@ fun locateNdiIncludes(): Path {
     }
     if (ndiSdk == null && file("../NDI 4 SDK").exists()) {
         ndiSdk = file("NDI 4 SDK").toPath()
+    }
+    // Check for local ndi-sdk directory (headers downloaded from obs-ndi)
+    if (ndiSdk == null && file("../ndi-sdk").exists()) {
+        ndiSdk = file("../ndi-sdk").toPath()
     }
 
     if (ndiSdk == null) {
@@ -228,10 +237,23 @@ val assembleIntegratedNDIArtifacts by tasks.registering(Jar::class) {
                     }
                 } else if (machine.operatingSystemFamily.name == "macos") {
                     nativeLibName = "libndi.dylib"
-                    nativeLicensePaths.add(file("../NDI SDK for Apple/licenses/libndi_licenses.txt").toPath())
+                    if (file("/usr/local/lib/libndi_licenses.txt").exists()) {
+                        nativeLicensePaths.add(file("/usr/local/lib/libndi_licenses.txt").toPath())
+                    } else if (file("../NDI SDK for Apple/licenses/libndi_licenses.txt").exists()) {
+                        nativeLicensePaths.add(file("../NDI SDK for Apple/licenses/libndi_licenses.txt").toPath())
+                    }
                     when (machine.architecture.name) {
                         "x86-64" -> {
-                            nativeLibPath = file("../NDI SDK for Apple/lib/macOS/libndi.dylib").toPath()
+                            if (file("/usr/local/lib/libndi.dylib").exists()) {
+                                nativeLibPath = file("/usr/local/lib/libndi.dylib").toPath()
+                            } else {
+                                nativeLibPath = file("../NDI SDK for Apple/lib/macOS/libndi.dylib").toPath()
+                            }
+                        }
+                        "arm64" -> {
+                            if (file("/usr/local/lib/libndi.dylib").exists()) {
+                                nativeLibPath = file("/usr/local/lib/libndi.dylib").toPath()
+                            }
                         }
                     }
                 } else if (machine.operatingSystemFamily.name == "linux") {

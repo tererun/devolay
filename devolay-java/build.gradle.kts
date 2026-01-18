@@ -111,9 +111,10 @@ publishing {
             from(components["java"])
             artifact(sourceJar)
             artifact(javadocJar)
-            artifact(androidAar) {
-                extension = "aar"
-            }
+            // Disabled for local build - androidAar not available
+            // artifact(androidAar) {
+            //     extension = "aar"
+            // }
 
             groupId = project.group as String
             artifactId = "devolay"
@@ -150,8 +151,10 @@ publishing {
 }
 
 signing {
+    setRequired(false)
     useInMemoryPgpKeys(System.getenv("PGP_KEY_ID"), System.getenv("PGP_KEY"), System.getenv("PGP_PASSWORD"))
-    sign(publishing.publications["devolay"])
+    // Disabled for local build
+    // sign(publishing.publications["devolay"])
 }
 
 // Generate an artifact of the JNI headers created by this project, for devolay-natives to consume.
