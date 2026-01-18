@@ -1,7 +1,20 @@
-# Devolay
+# Devolay (Fork with Apple Silicon Support)
+
 A Java library for sending and receiving video over the network using the Newtek NDI® SDK. For more information about NDI®, see:
 
 http://NDI.NewTek.com/
+
+> **Note:** This is a fork of [WalkerKnapp/devolay](https://github.com/WalkerKnapp/devolay) with added support for **Apple Silicon (arm64) macOS**.
+
+## Supported Platforms
+
+| Platform | Architecture | Status |
+|----------|--------------|--------|
+| Windows | x86, x86-64 | ✅ |
+| Linux | x86, x86-64 | ✅ |
+| macOS | x86-64 (Intel) | ✅ |
+| macOS | arm64 (Apple Silicon) | ✅ **New** |
+| Android | arm64-v8a, armeabi-v7a, x86, x86_64 | ✅ |
 
 ## Download / Installation
 
@@ -116,7 +129,42 @@ To mitigate this, try to use `x86` emulators, ARM emulators, or physical devices
 
 ## Compiling
 
-### Linux or WSL (Recommended)
+### macOS (Apple Silicon)
+
+This fork adds native support for Apple Silicon Macs.
+
+#### Requirements
+- Java 11+ (Java 21 recommended)
+- NDI SDK headers (included in `ndi-sdk/include/` or install NDI SDK)
+
+#### Building
+
+```bash
+git clone https://github.com/tererun/devolay.git
+cd devolay
+
+# Build natives and Java library
+./gradlew :devolay-natives:build :devolay-java:build
+
+# Install to local Maven repository
+./gradlew :devolay-java:publishToMavenLocal
+```
+
+The library will be installed to `~/.m2/repository/me/walkerknapp/devolay/`.
+
+#### Usage with Gradle (from mavenLocal)
+```groovy
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'me.walkerknapp:devolay:2.1.1'
+}
+```
+
+### Linux or WSL
 
 #### Requirements
 
@@ -175,3 +223,10 @@ dependencies {
     implementation 'com.walker:devolay:VERSION'
 }
 ```
+
+## Changes from Upstream
+
+This fork includes the following changes:
+- Added arm64 macOS target in `devolay-natives/build.gradle.kts`
+- Modified `Devolay.java` to correctly detect arm64 architecture on macOS
+- Included NDI SDK headers in `ndi-sdk/include/`
