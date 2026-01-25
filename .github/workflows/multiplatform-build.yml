@@ -167,7 +167,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build combined JAR
-        run: ./gradlew :devolay-java:build
+        run: ./gradlew :devolay-java:jar :devolay-java:sourceJar :devolay-java:javadocJar
 
       - name: Upload combined artifacts
         uses: actions/upload-artifact@v4
@@ -177,7 +177,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Publish to Maven Local
-        run: ./gradlew :devolay-java:publishToMavenLocal
+        run: ./gradlew :devolay-java:publishToMavenLocal -x integratedJar
 
       - name: Upload Maven Local artifacts
         uses: actions/upload-artifact@v4
