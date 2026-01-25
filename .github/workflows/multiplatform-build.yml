@@ -21,23 +21,25 @@ jobs:
 
       - name: Setup NDI SDK
         run: |
-          # Download NDI SDK for macOS
-          curl -L -o ndi_sdk.pkg "https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg"
+          # Use the headers already in the repo (ndi-sdk/include/)
+          # Create symlink for build system compatibility
+          mkdir -p "NDI SDK for Apple"
+          ln -s "$(pwd)/ndi-sdk/include" "NDI SDK for Apple/include"
           
-          # Extract using installer to a local directory
-          sudo installer -pkg ndi_sdk.pkg -target /
+          # For integrated builds, try to get libndi from homebrew or skip
+          brew install --cask ndi-tools || echo "NDI Tools not available, will build without integrated NDI libs"
           
-          # The SDK should now be in /Library/NDI SDK for Apple or similar
-          if [ -d "/Library/NDI SDK for Apple" ]; then
-            ln -s "/Library/NDI SDK for Apple" "NDI SDK for Apple"
-          elif [ -d "/Library/NDI SDK for macOS" ]; then
-            ln -s "/Library/NDI SDK for macOS" "NDI SDK for Apple"
-          else
-            echo "Looking for NDI SDK..."
-            find /Library -maxdepth 1 -name "*NDI*" -type d
-            # Try alternative location
-            ls -la /Library/
+          # Check if NDI was installed
+          if [ -f "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" ]; then
+            ln -sf "/Library/NDI SDK for Apple/lib" "NDI SDK for Apple/lib"
+          elif [ -f "/usr/local/lib/libndi.dylib" ]; then
+            mkdir -p "NDI SDK for Apple/lib/macOS"
+            ln -s "/usr/local/lib/libndi.dylib" "NDI SDK for Apple/lib/macOS/libndi.dylib"
           fi
+          
+          echo "NDI SDK structure:"
+          ls -la "NDI SDK for Apple/" || true
+          ls -la "NDI SDK for Apple/include/" || true
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
