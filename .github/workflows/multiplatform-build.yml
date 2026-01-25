@@ -1,0 +1,190 @@
+name: Multi-Platform Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-14  # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup NDI SDK
+        run: |
+          # Download and extract NDI SDK for macOS
+          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg -O ndi_sdk.pkg
+          pkgutil --expand ndi_sdk.pkg ndi_pkg_expanded
+          cd ndi_pkg_expanded
+          cat Payload | gunzip -dc | cpio -i
+          cd ..
+          mv "ndi_pkg_expanded/NDI SDK for macOS" "NDI SDK for Apple"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build natives for macOS
+        run: |
+          ./gradlew :devolay-natives:assembleRelease
+
+      - name: Upload macOS natives
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-macos
+          path: devolay-natives/build/libs/main/release/**/
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup NDI SDK
+        shell: pwsh
+        run: |
+          # Download NDI SDK installer
+          Invoke-WebRequest -Uri "https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20SDK.exe" -OutFile "ndi_sdk.exe"
+          # Extract using 7zip (available on Windows runners)
+          7z x ndi_sdk.exe -ondi_extracted
+          New-Item -ItemType Directory -Force -Path "NDI SDK for Windows"
+          Move-Item -Path "ndi_extracted/*" -Destination "NDI SDK for Windows/" -Force
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Build natives for Windows
+        run: ./gradlew :devolay-natives:assembleRelease
+        shell: bash
+
+      - name: Upload Windows natives
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-windows
+          path: devolay-natives/build/libs/main/release/**/
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup NDI SDK
+        run: |
+          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz
+          tar -xzf Install_NDI_SDK_v6_Linux.tar.gz
+          sed -i 's/read -p/cat/g' Install_NDI_SDK_v6_Linux.sh
+          PAGER=cat REPLY=y ./Install_NDI_SDK_v6_Linux.sh
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build natives for Linux
+        run: ./gradlew :devolay-natives:assembleRelease
+
+      - name: Upload Linux natives
+        uses: actions/upload-artifact@v4
+        with:
+          name: natives-linux
+          path: devolay-natives/build/libs/main/release/**/
+
+  combine-and-publish:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Download all natives
+        uses: actions/download-artifact@v4
+        with:
+          path: collected-natives
+
+      - name: Setup NDI SDK (for headers and integrated builds)
+        run: |
+          # Download all platform SDKs for integrated build
+          # Linux
+          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz
+          tar -xzf Install_NDI_SDK_v6_Linux.tar.gz
+          sed -i 's/read -p/cat/g' Install_NDI_SDK_v6_Linux.sh
+          PAGER=cat REPLY=y ./Install_NDI_SDK_v6_Linux.sh
+          
+          # Windows (for DLLs)
+          wget -q "https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20SDK.exe" -O ndi_win.exe
+          7z x ndi_win.exe -ondi_win_extracted
+          mkdir -p "NDI SDK for Windows"
+          mv ndi_win_extracted/* "NDI SDK for Windows/" || true
+          
+          # macOS (for dylibs)
+          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg -O ndi_mac.pkg
+          7z x ndi_mac.pkg -ondi_mac_extracted
+          cd ndi_mac_extracted
+          cat Payload | gunzip -dc | cpio -i 2>/dev/null || true
+          cd ..
+          mv "ndi_mac_extracted/NDI SDK for macOS" "NDI SDK for Apple" || true
+
+      - name: Prepare natives directory structure
+        run: |
+          mkdir -p devolay-natives/build/libs/main/release
+          
+          # Copy macOS natives
+          if [ -d "collected-natives/natives-macos" ]; then
+            cp -r collected-natives/natives-macos/* devolay-natives/build/libs/main/release/ || true
+          fi
+          
+          # Copy Windows natives
+          if [ -d "collected-natives/natives-windows" ]; then
+            cp -r collected-natives/natives-windows/* devolay-natives/build/libs/main/release/ || true
+          fi
+          
+          # Copy Linux natives
+          if [ -d "collected-natives/natives-linux" ]; then
+            cp -r collected-natives/natives-linux/* devolay-natives/build/libs/main/release/ || true
+          fi
+          
+          echo "=== Collected natives ==="
+          find devolay-natives/build -name "*.dll" -o -name "*.dylib" -o -name "*.so" 2>/dev/null || true
+
+      - name: Build combined JAR
+        run: |
+          chmod +x gradlew
+          ./gradlew :devolay-java:build
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: devolay-multiplatform
+          path: devolay-java/build/libs/*
+
+      - name: Publish to Maven Local (for testing)
+        run: ./gradlew :devolay-java:publishToMavenLocal
+
+      - name: Upload Maven Local artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-local-artifacts
+          path: ~/.m2/repository/me/walkerknapp/devolay/
