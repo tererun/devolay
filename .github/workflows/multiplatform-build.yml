@@ -2,9 +2,9 @@ name: Multi-Platform Build
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, release]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, release]
   workflow_dispatch:
 
 jobs:
@@ -34,13 +34,14 @@ jobs:
 
       - name: Build natives for macOS
         run: |
-          ./gradlew :devolay-natives:assembleRelease
+          ./gradlew :devolay-natives:assembleReleaseMacosArm64 :devolay-natives:assembleReleaseMacosX86-64 || true
 
       - name: Upload macOS natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-macos
-          path: devolay-natives/build/libs/main/release/**/
+          path: |
+            devolay-natives/build/libs/main/release/macos/
 
   build-windows:
     runs-on: windows-latest
@@ -68,14 +69,15 @@ jobs:
         shell: bash
 
       - name: Build natives for Windows
-        run: ./gradlew :devolay-natives:assembleRelease
+        run: ./gradlew :devolay-natives:assembleReleaseWindowsX86-64 :devolay-natives:assembleReleaseWindowsX86
         shell: bash
 
       - name: Upload Windows natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-windows
-          path: devolay-natives/build/libs/main/release/**/
+          path: |
+            devolay-natives/build/libs/main/release/windows/
 
   build-linux:
     runs-on: ubuntu-latest
@@ -98,14 +100,20 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Install 32-bit support
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+
       - name: Build natives for Linux
-        run: ./gradlew :devolay-natives:assembleRelease
+        run: ./gradlew :devolay-natives:assembleReleaseLinuxX86-64 :devolay-natives:assembleReleaseLinuxX86
 
       - name: Upload Linux natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-linux
-          path: devolay-natives/build/libs/main/release/**/
+          path: |
+            devolay-natives/build/libs/main/release/linux/
 
   combine-and-publish:
     needs: [build-macos, build-windows, build-linux]

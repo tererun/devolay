@@ -1,6 +1,16 @@
-name: Java CI with Gradle
+name: Java CI with Gradle (Legacy)
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches-ignore:
+      - release
+      - main
+      - master
+  pull_request:
+    branches-ignore:
+      - release
+      - main
+      - master
 
 jobs:
   build:
