@@ -39,7 +39,7 @@ jobs:
 
       - name: Build natives for macOS
         run: |
-          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          ./gradlew :devolay-natives:assembleReleaseMacosArm64 :devolay-natives:assembleReleaseMacosX86-64
           echo "=== Build output ==="
           find devolay-natives/build -name "*.dylib" 2>/dev/null || true
 
@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          ./gradlew :devolay-natives:assembleReleaseWindowsX86-64 :devolay-natives:assembleReleaseWindowsX86
           echo "=== Build output ==="
           find devolay-natives/build -name "*.dll" 2>/dev/null || true
 
@@ -110,7 +110,7 @@ jobs:
 
       - name: Build natives for Linux
         run: |
-          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          ./gradlew :devolay-natives:assembleReleaseLinuxX86-64 :devolay-natives:assembleReleaseLinuxX86
           echo "=== Build output ==="
           find devolay-natives/build -name "*.so" 2>/dev/null || true
 
