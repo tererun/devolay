@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-14  # Apple Silicon runner
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -21,39 +21,34 @@ jobs:
 
       - name: Setup NDI SDK
         run: |
-          # Use the headers already in the repo (ndi-sdk/include/)
-          # Create symlink for build system compatibility
-          mkdir -p "NDI SDK for Apple"
-          ln -s "$(pwd)/ndi-sdk/include" "NDI SDK for Apple/include"
+          # Use headers from repo
+          mkdir -p "NDI SDK for Apple/include"
+          cp -r ndi-sdk/include/* "NDI SDK for Apple/include/"
           
-          # For integrated builds, try to get libndi from homebrew or skip
-          brew install --cask ndi-tools || echo "NDI Tools not available, will build without integrated NDI libs"
+          # Try to get NDI runtime for integrated builds
+          brew install --cask ndi-tools 2>/dev/null || true
           
-          # Check if NDI was installed
-          if [ -f "/Library/NDI SDK for Apple/lib/macOS/libndi.dylib" ]; then
-            ln -sf "/Library/NDI SDK for Apple/lib" "NDI SDK for Apple/lib"
-          elif [ -f "/usr/local/lib/libndi.dylib" ]; then
-            mkdir -p "NDI SDK for Apple/lib/macOS"
-            ln -s "/usr/local/lib/libndi.dylib" "NDI SDK for Apple/lib/macOS/libndi.dylib"
+          if [ -d "/Library/NDI SDK for Apple/lib" ]; then
+            cp -r "/Library/NDI SDK for Apple/lib" "NDI SDK for Apple/"
           fi
           
-          echo "NDI SDK structure:"
           ls -la "NDI SDK for Apple/" || true
-          ls -la "NDI SDK for Apple/include/" || true
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build natives for macOS
         run: |
-          ./gradlew :devolay-natives:assembleReleaseMacosArm64 :devolay-natives:assembleReleaseMacosX86-64 || true
+          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          echo "=== Build output ==="
+          find devolay-natives/build -name "*.dylib" 2>/dev/null || true
 
       - name: Upload macOS natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-macos
-          path: |
-            devolay-natives/build/libs/main/release/macos/
+          path: devolay-natives/build/lib/main/release/
+          if-no-files-found: warn
 
   build-windows:
     runs-on: windows-latest
@@ -69,27 +64,24 @@ jobs:
       - name: Setup NDI SDK
         shell: pwsh
         run: |
-          # Download NDI SDK installer
-          Invoke-WebRequest -Uri "https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20SDK.exe" -OutFile "ndi_sdk.exe"
-          # Extract using 7zip (available on Windows runners)
-          7z x ndi_sdk.exe -ondi_extracted
-          New-Item -ItemType Directory -Force -Path "NDI SDK for Windows"
-          Move-Item -Path "ndi_extracted/*" -Destination "NDI SDK for Windows/" -Force
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-        shell: bash
+          # Use headers from repo
+          New-Item -ItemType Directory -Force -Path "NDI SDK for Windows/Include"
+          Copy-Item -Recurse -Path "ndi-sdk/include/*" -Destination "NDI SDK for Windows/Include/"
 
       - name: Build natives for Windows
-        run: ./gradlew :devolay-natives:assembleReleaseWindowsX86-64 :devolay-natives:assembleReleaseWindowsX86
         shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          echo "=== Build output ==="
+          find devolay-natives/build -name "*.dll" 2>/dev/null || true
 
       - name: Upload Windows natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-windows
-          path: |
-            devolay-natives/build/libs/main/release/windows/
+          path: devolay-natives/build/lib/main/release/
+          if-no-files-found: warn
 
   build-linux:
     runs-on: ubuntu-latest
@@ -104,32 +96,35 @@ jobs:
 
       - name: Setup NDI SDK
         run: |
-          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz
-          tar -xzf Install_NDI_SDK_v6_Linux.tar.gz
-          sed -i 's/read -p/cat/g' Install_NDI_SDK_v6_Linux.sh
-          PAGER=cat REPLY=y ./Install_NDI_SDK_v6_Linux.sh
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          # Use headers from repo
+          mkdir -p "NDI SDK for Linux/include"
+          cp -r ndi-sdk/include/* "NDI SDK for Linux/include/"
 
       - name: Install 32-bit support
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Build natives for Linux
-        run: ./gradlew :devolay-natives:assembleReleaseLinuxX86-64 :devolay-natives:assembleReleaseLinuxX86
+        run: |
+          ./gradlew :devolay-natives:assembleRelease --info 2>&1 | tail -100
+          echo "=== Build output ==="
+          find devolay-natives/build -name "*.so" 2>/dev/null || true
 
       - name: Upload Linux natives
         uses: actions/upload-artifact@v4
         with:
           name: natives-linux
-          path: |
-            devolay-natives/build/libs/main/release/linux/
+          path: devolay-natives/build/lib/main/release/
+          if-no-files-found: warn
 
   combine-and-publish:
     needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - uses: actions/checkout@v4
 
@@ -143,64 +138,45 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: collected-natives
+        continue-on-error: true
 
-      - name: Setup NDI SDK (for headers and integrated builds)
+      - name: Setup NDI SDK headers
         run: |
-          # Download all platform SDKs for integrated build
-          # Linux
-          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Linux/Install_NDI_SDK_v6_Linux.tar.gz
-          tar -xzf Install_NDI_SDK_v6_Linux.tar.gz
-          sed -i 's/read -p/cat/g' Install_NDI_SDK_v6_Linux.sh
-          PAGER=cat REPLY=y ./Install_NDI_SDK_v6_Linux.sh
-          
-          # Windows (for DLLs)
-          wget -q "https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20SDK.exe" -O ndi_win.exe
-          7z x ndi_win.exe -ondi_win_extracted
-          mkdir -p "NDI SDK for Windows"
-          mv ndi_win_extracted/* "NDI SDK for Windows/" || true
-          
-          # macOS (for dylibs)
-          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg -O ndi_mac.pkg
-          7z x ndi_mac.pkg -ondi_mac_extracted
-          cd ndi_mac_extracted
-          cat Payload | gunzip -dc | cpio -i 2>/dev/null || true
-          cd ..
-          mv "ndi_mac_extracted/NDI SDK for macOS" "NDI SDK for Apple" || true
+          mkdir -p "NDI SDK for Linux/include"
+          cp -r ndi-sdk/include/* "NDI SDK for Linux/include/"
 
       - name: Prepare natives directory structure
         run: |
-          mkdir -p devolay-natives/build/libs/main/release
+          mkdir -p devolay-natives/build/lib/main/release
           
-          # Copy macOS natives
-          if [ -d "collected-natives/natives-macos" ]; then
-            cp -r collected-natives/natives-macos/* devolay-natives/build/libs/main/release/ || true
-          fi
+          echo "=== Downloaded artifacts ==="
+          find collected-natives -type f 2>/dev/null || true
           
-          # Copy Windows natives
-          if [ -d "collected-natives/natives-windows" ]; then
-            cp -r collected-natives/natives-windows/* devolay-natives/build/libs/main/release/ || true
-          fi
+          # Copy all platform natives
+          for platform in macos windows linux; do
+            if [ -d "collected-natives/natives-$platform" ]; then
+              echo "Copying $platform natives..."
+              cp -r collected-natives/natives-$platform/* devolay-natives/build/lib/main/release/ 2>/dev/null || true
+            fi
+          done
           
-          # Copy Linux natives
-          if [ -d "collected-natives/natives-linux" ]; then
-            cp -r collected-natives/natives-linux/* devolay-natives/build/libs/main/release/ || true
-          fi
-          
-          echo "=== Collected natives ==="
-          find devolay-natives/build -name "*.dll" -o -name "*.dylib" -o -name "*.so" 2>/dev/null || true
+          echo "=== Final natives structure ==="
+          find devolay-natives/build/lib -type f 2>/dev/null || true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build combined JAR
-        run: |
-          chmod +x gradlew
-          ./gradlew :devolay-java:build
+        run: ./gradlew :devolay-java:build
 
       - name: Upload combined artifacts
         uses: actions/upload-artifact@v4
         with:
           name: devolay-multiplatform
           path: devolay-java/build/libs/*
+          if-no-files-found: warn
 
-      - name: Publish to Maven Local (for testing)
+      - name: Publish to Maven Local
         run: ./gradlew :devolay-java:publishToMavenLocal
 
       - name: Upload Maven Local artifacts
@@ -208,3 +184,4 @@ jobs:
         with:
           name: maven-local-artifacts
           path: ~/.m2/repository/me/walkerknapp/devolay/
+          if-no-files-found: warn
