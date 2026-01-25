@@ -21,13 +21,23 @@ jobs:
 
       - name: Setup NDI SDK
         run: |
-          # Download and extract NDI SDK for macOS
-          wget -q https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg -O ndi_sdk.pkg
-          pkgutil --expand ndi_sdk.pkg ndi_pkg_expanded
-          cd ndi_pkg_expanded
-          cat Payload | gunzip -dc | cpio -i
-          cd ..
-          mv "ndi_pkg_expanded/NDI SDK for macOS" "NDI SDK for Apple"
+          # Download NDI SDK for macOS
+          curl -L -o ndi_sdk.pkg "https://downloads.ndi.tv/SDK/NDI_SDK_Mac/Install_NDI_SDK_v6_macOS.pkg"
+          
+          # Extract using installer to a local directory
+          sudo installer -pkg ndi_sdk.pkg -target /
+          
+          # The SDK should now be in /Library/NDI SDK for Apple or similar
+          if [ -d "/Library/NDI SDK for Apple" ]; then
+            ln -s "/Library/NDI SDK for Apple" "NDI SDK for Apple"
+          elif [ -d "/Library/NDI SDK for macOS" ]; then
+            ln -s "/Library/NDI SDK for macOS" "NDI SDK for Apple"
+          else
+            echo "Looking for NDI SDK..."
+            find /Library -maxdepth 1 -name "*NDI*" -type d
+            # Try alternative location
+            ls -la /Library/
+          fi
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
