@@ -166,8 +166,38 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build combined JAR
-        run: ./gradlew :devolay-java:jar :devolay-java:sourceJar :devolay-java:javadocJar
+      - name: Compile Java classes only
+        run: ./gradlew :devolay-java:compileJava :devolay-java:sourceJar :devolay-java:javadocJar
+
+      - name: Create combined JAR manually
+        run: |
+          VERSION="2.1.1"
+          mkdir -p devolay-java/build/libs
+          mkdir -p jar-contents
+          
+          # Copy compiled classes
+          cp -r devolay-java/build/classes/java/main/* jar-contents/
+          
+          # Copy natives from collected artifacts
+          mkdir -p jar-contents/natives
+          
+          echo "=== Copying natives to JAR ==="
+          for platform in macos windows linux; do
+            if [ -d "collected-natives/natives-$platform" ]; then
+              cp -r collected-natives/natives-$platform/* jar-contents/natives/ 2>/dev/null || true
+            fi
+          done
+          
+          echo "=== JAR contents structure ==="
+          find jar-contents -type f
+          
+          # Create JAR
+          cd jar-contents
+          jar cf ../devolay-java/build/libs/devolay-${VERSION}.jar .
+          cd ..
+          
+          echo "=== Created JARs ==="
+          ls -la devolay-java/build/libs/
 
       - name: Upload combined artifacts
         uses: actions/upload-artifact@v4
@@ -176,8 +206,31 @@ jobs:
           path: devolay-java/build/libs/*
           if-no-files-found: warn
 
-      - name: Publish to Maven Local
-        run: ./gradlew :devolay-java:publishToMavenLocal -x integratedJar
+      - name: Create Maven Local structure
+        run: |
+          VERSION="2.1.1"
+          GROUP_PATH="me/walkerknapp/devolay"
+          MAVEN_DIR=~/.m2/repository/${GROUP_PATH}/${VERSION}
+          
+          mkdir -p ${MAVEN_DIR}
+          cp devolay-java/build/libs/devolay-${VERSION}.jar ${MAVEN_DIR}/
+          cp devolay-java/build/libs/devolay-${VERSION}-sources.jar ${MAVEN_DIR}/ 2>/dev/null || true
+          cp devolay-java/build/libs/devolay-${VERSION}-javadoc.jar ${MAVEN_DIR}/ 2>/dev/null || true
+          
+          # Create minimal POM
+          cat > ${MAVEN_DIR}/devolay-${VERSION}.pom << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>me.walkerknapp</groupId>
+            <artifactId>devolay</artifactId>
+            <version>2.1.1</version>
+            <packaging>jar</packaging>
+          </project>
+          EOF
+          
+          echo "=== Maven Local structure ==="
+          find ~/.m2/repository/${GROUP_PATH} -type f
 
       - name: Upload Maven Local artifacts
         uses: actions/upload-artifact@v4
